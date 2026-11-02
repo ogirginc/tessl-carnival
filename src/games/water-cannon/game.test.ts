@@ -4,6 +4,7 @@ import {
   TANK_SIZE,
   createState,
   fire,
+  hitAlong,
   isHit,
   scoreForHit,
   step,
@@ -70,6 +71,32 @@ describe('water cannon', () => {
   it('detects a hit inside the target and a miss outside it', () => {
     expect(isHit({ x: 410, y: 210, vx: 0, vy: 0 }, target)).toBe(true);
     expect(isHit({ x: 460, y: 200, vx: 0, vy: 0 }, target)).toBe(false);
+  });
+
+  it('scores a shot that crosses a target between updates', () => {
+    const state = createState();
+    state.targets = [{ ...target }];
+    // One update moves the shot from below the target to above it.
+    state.shots = [{ x: target.x, y: target.y + 50, vx: 0, vy: -1000 }];
+    step(state, 0.1);
+    expect(state.score).toBe(scoreForHit(target));
+    expect(state.shots).toHaveLength(0);
+  });
+
+  it('soaks the first target along the path when a move crosses two', () => {
+    const state = createState();
+    const near = { ...target, y: 300, speed: 60 };
+    const far = { ...target, y: 100, speed: 180 };
+    state.targets = [far, near];
+    state.shots = [{ x: target.x, y: 380, vx: 0, vy: -4000 }];
+    step(state, 0.1);
+    expect(state.score).toBe(scoreForHit(near));
+  });
+
+  it('finds where a move enters the target, and misses a move that passes it', () => {
+    expect(hitAlong(400, 300, { x: 400, y: 100, vx: 0, vy: 0 }, target)).toBeCloseTo(0.36);
+    expect(hitAlong(460, 300, { x: 460, y: 100, vx: 0, vy: 0 }, target)).toBeNull();
+    expect(hitAlong(400, 300, { x: 400, y: 250, vx: 0, vy: 0 }, target)).toBeNull();
   });
 
   it('scores a fast target higher than a slow one', () => {
